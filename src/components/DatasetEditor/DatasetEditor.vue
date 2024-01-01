@@ -9,51 +9,64 @@
     </template>
 
     <ImageList>
-      <el-image @click="showPromptEditor()" v-for="_ in 22"
-        src="https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png"></el-image>
+      <el-image fit="contain" @click="showPromptEditor(item)" v-for="item in dataset" :src="item.url"></el-image>
     </ImageList>
   </BaseEditor>
 
-  <PromptEditor @close="promptEditorVisible = false" v-if="promptEditorVisible"></PromptEditor>
+  <PromptEditor ref="PromptEditorRef"></PromptEditor>
 </template>
 
 <script setup>
-import { Search } from '@element-plus/icons-vue'
-import ImageList from '@/components/ImageList/ImageList.vue'
+import { Search, ArrowDown } from '@element-plus/icons-vue'
+import * as TagUtil from '@/utils/tag.js'
 
+import ImageList from '@/components/ImageList/ImageList.vue'
 import BaseEditor from '@/components/DatasetEditor/BaseEditor.vue'
 import PromptEditor from '@/components/DatasetEditor/PromptEditor.vue'
 
-const promptEditorVisible = ref(false)
-const showPromptEditor = () => {
-  promptEditorVisible.value = true
+
+/**
+ * data: {
+ *  id: Number
+ *  dataset: {
+ *    text: String
+ *    image: String
+ *    type: "text" | "image"
+ *    url: String
+ *    raw: File
+ *   }
+ * }
+ * 
+*/
+const props = defineProps({
+  data: {
+    type: Object,
+    required: true
+  }
+})
+
+const dataset = computed(() => props.data.imageList)
+const tagList = computed(() => props.data.tagList)
+const tags = computed(() => TagUtil.countTags(tagList.value.map(tag => tag.tags)))
+
+const PromptEditorRef = ref()
+const showPromptEditor = (selectedImage) => {
+  const tagObj = tagList.value.find(tag => tag.name === selectedImage.name) || []
+  PromptEditorRef.value.open({
+    url: selectedImage.url,
+    tags: tags.value.filter(tagCount => tagObj.tags.includes(tagCount.name))
+  })
 }
 
-const tags = [{
-  name: '1girl',
-  count: 20,
-},
-{
-  name: '1girl',
-  count: 20,
-},
-{
-  name: '1girl',
-  count: 20,
-},
-{
-  name: '1girl',
-  count: 20,
-}
-]
 </script>
 
 <style lang="scss" scoped>
 .el-input {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .el-image {
   cursor: pointer;
+  height: 20vh;
 }
 </style>

@@ -16,11 +16,15 @@
 
       <section class="info" v-show="fileList && fileList.length">
         <span>Found {{ imageCount }} images, {{ textCount }} tag files.</span>
-        <el-button @click="createTabPane">Next</el-button>
+        <span>
+          <el-button @click="createTabPane" type="warning">Clear</el-button>
+          <el-button @click="createTabPane" type="success">Next</el-button>
+        </span>
       </section>
 
       <ImageList>
-        <el-image fit="contain" v-for="value in dataset" :key="value.id" :src="value.url"> {{ value.url }}</el-image>
+        <el-image fit="contain" v-for="img in imageList" :key="img.id" :src="img.url">
+        </el-image>
       </ImageList>
     </div>
   </el-main>
@@ -28,7 +32,8 @@
 
 <script setup lang="ts">
 import { UploadFilled } from '@element-plus/icons-vue'
-import { watch } from 'vue';
+
+import * as TagUtil from '@/utils/tag.js'
 
 import ImageList from '@/components/ImageList/ImageList.vue'
 
@@ -36,43 +41,71 @@ const emit = defineEmits(['create-panel'])
 
 const fileList = ref([])
 
-const loadDataset = (fileList) => {
-  const dataset = {}
+const loadDataset = async (fileList) => {
+  const imageList = []
+  const tagList = []
+
   for (const { raw } of fileList) {
-    const [filename, ext] = raw.name.split('.')
-    dataset[filename] = dataset[filename] || { text: null, image: null, type: "", raw: null }
-    const type = raw.type.split('/')[0]
-    if (['image', 'text'].indexOf(type) > -1) {
-      dataset[filename][type] = raw
-      dataset[filename].type = type
-      if (type === 'image') {
-        dataset[filename].url = URL.createObjectURL(raw)
-      } else {
-        const reader = new FileReader();
-        reader.onload = function (evt) {
-          dataset[filename].text = evt.target.result
-        };
-        
-        reader.readAsText(raw);
+    await new Promise((resolve, reject) => {
+      const type = raw.type.split('/')[0]
+      // a.b.c.d will get [a, b]
+      const [name, ext] = raw.name.split('.')
+      const datasetItem = { name, id: raw.uid }
+      if (type === 'text') {
+        const reader = new FileReader()
+        reader.readAsText(raw, 'utf-8')
+        reader.onload = (e) => {
+          const text = e.target.result
+
+          tagList.push({
+            ...datasetItem,
+            tags: TagUtil.getTagList(text),
+          })
+
+          resolve(void 0)
+        }
+      } else if (type === 'image') {
+        imageList.push({
+          ...datasetItem,
+          url: URL.createObjectURL(raw),
+        })
+
+        resolve(void 0)
       }
-    }
+    })
   }
 
-  return dataset
+  return { imageList, tagList }
 }
 
-const dataset = ref({})
-const filenameList = computed(() => Object.keys(dataset.value))
+/**
+ * {
+ *  text: String
+ *  image: String
+ *  type: "text" | "image"
+ *  url: String
+ *  raw: File
+ * }
+ * 
+*/
+const imageList = ref([])
+const tagList = ref([])
 
-watch(() => fileList.value, () => {
-  dataset.value = loadDataset(fileList.value)
+watch(() => fileList.value, async () => {
+  const { imageList: i, tagList: t } = await loadDataset(fileList.value)
+  imageList.value = i
+  tagList.value = t
 })
 
-const imageCount = computed(() => filenameList.value.filter(name => dataset.value[name]?.image).length)
-const textCount = computed(() => filenameList.value.filter(name => dataset.value[name]?.text).length)
+const imageCount = computed(() => imageList.value.length)
+const textCount = computed(() => tagList.value.length)
 
 const createTabPane = () => {
-  emit('create-panel', dataset.value)
+  emit('create-panel', {
+    imageList: imageList.value,
+    tagList: tagList.value,
+    id: new Date().getTime()
+  })
 }
 </script>
 
@@ -103,7 +136,7 @@ const createTabPane = () => {
   }
 
   .el-image {
-    height: 150px;
+    height: 20vh;
   }
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
-  <BaseEditor :tags="tags">
+  <BaseEditor :tagClosable="true" :tags="dataset.tags" v-if="visible">
     <template #left-top>
-      <el-input :rows="7" type="textarea">
+      <el-input v-model="tagsText" :rows="12" type="textarea">
       </el-input>
     </template>
 
@@ -11,7 +11,7 @@
       </el-icon>
     </template>
 
-    <el-image src="https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png"></el-image>
+    <el-image :src="dataset.url"></el-image>
   </BaseEditor>
 </template>
 
@@ -22,28 +22,29 @@ import BaseEditor from '@/components/DatasetEditor/BaseEditor.vue'
 
 const emit = defineEmits(['close'])
 
+const visible = ref(false)
+const dataset = ref({
+  url: "",
+  tags: []
+})
+
+const tagsText = ref("")
+
+watch(() => dataset.value.tags, () => {
+  tagsText.value = dataset.value.tags.map(tagObj => tagObj.name).join(', ')
+})
+
+defineExpose({
+  open(_dataset) {
+    visible.value = true
+    dataset.value = _dataset
+  }
+})
+
 const handleClose = () => {
+  visible.value = false
   emit('close')
 }
-
-const tags = [
-  {
-    name: '1girl',
-    count: 20,
-  },
-  {
-    name: '1girl',
-    count: 20,
-  },
-  {
-    name: '1girl',
-    count: 20,
-  },
-  {
-    name: '1girl',
-    count: 20,
-  }
-]
 </script>
 
 <style lang="scss" scoped>
@@ -53,13 +54,12 @@ const tags = [
   top: 0;
   background-color: rgba(0, 0, 0, 0.4);
   z-index: 1234;
-  padding: 20px;
   width: 100vw;
   height: 100vh;
 }
 
 .el-textarea {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .el-icon {
